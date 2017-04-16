@@ -1,0 +1,779 @@
+---
+title: "8-Factors Model by Machine Learning"
+author: "Ma Yadong"
+date: "2017/4/17"
+output: 
+  beamer_presentation: 
+    colortheme: rose
+    fig_height: 6
+    theme: CambridgeUS
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Intraduction
+
+## Predict alpha returns with Machine Learning
+
+- Traditional factor models are useful in portfolio selection
+- Predicting alpha returns are of importance in factor models.
+- Machine learning may give a better solution for prediction.
+- LinearRegression, LogisticRegression, RandomForest_Classfier, RandomForest_Regression, Adaboost_Classfier, Adaboost_Regression
+
+## What are factor models
+- CAPM
+$$E(r_i) = \beta_{0} + \beta_{1}r_{m} +\varepsilon_{i}$$
+
+- Fama-French 3 Factors
+$$r_{i} = \beta_{0} + \beta_{1}r_{m} + \beta_{2}r_{HML} +\beta_{3}r_{SMB} + \varepsilon_{i}$$
+- Multi-factor model
+$$r_{i} = \sum \beta_{i}f_{i}+ \varepsilon_{i}$$
+
+
+
+## Datasets
+- The dataset are **daily data** in China stock market from **2009-01-01** to **2017-03-31**
+- Trading strategy:
+    1. At each trade times, select the best K stocks from the whole market according to **Scores**
+    2. ST stocks and price limit stocks are not included in our targets
+    3. Change the position monthly (20 trade days in fact)
+    4. The weight of each stocks aresimplified as **equivalent weight**.
+    5. At each trading, we use **the past 12 months** data to train our model and then to predict the scores.
+- Scores:
+    1. We are going to divide the stocks into **GOOD** and **BAD** two groups (with labels 1 and 0 correspondingly)
+    2. We rank the return of future 20 days. We label the first 30% as 1 (GOOD), and last 30% as 0 (BAD)
+    3. After the each prediction of our claffier, **the predicted probablity of fall into GOOD group will be the scores**.
+
+
+## Factors
+1. **TotalValue**: the total capital value of stocks
+2. **Reversal_DongFang**: a revesal indicator offered by DongFang Security
+3. **Seasonal_NetProfitGrowth_YOY**: Net profit growth rate seasonally
+4. **Turnover_ols_TotalValue**: value neutral turnover rate
+5. **PB_lf**: latest Price bookvalue ratio
+6. **HeteroRsquare_FF_d20**: Fama-French regression $R^2$
+7. **PreRet_M_IndusRet_Citic1_m1**: Industrial neutral 1M monmentum
+8. **PreRet_M_IndusRet_Citic1_m3**: Industrial neutral 3M monmentum
+
+
+# Single Factor Test Overview
+
+## TotalValue
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'TotalValue'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+
+## Reversal_DongFang
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Reversal_DongFang'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+
+## Seasonal_NetProfitGrowth_YOY
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Seasonal_NetProfitGrowth_YOY'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+## Turnover_ols_TotalValue
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Turnover_ols_TotalValue'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+## PB_lf
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'PB_lf'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+## HeteroRsquare_FF_d20
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'HeteroRsquare_FF_d20'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+## PreRet_M_IndusRet_Citic1_m1
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'PreRet_M_IndusRet_Citic1_m1'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+## PreRet_M_IndusRet_Citic1_m3
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'PreRet_M_IndusRet_Citic1_m3'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+
+## PreRet_M_IndusRet_Citic1_m3
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'PreRet_M_IndusRet_Citic1_m3'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`
+
+
+# Machine Learning methods results
+
+## LinearRegression_150_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'LinearRegression_150'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('LinearRegression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+
+## LinearRegression_200_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'LinearRegression_200'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('LinearRegression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## LogisticRegression_150_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'LogisticRegression_150'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('LogisticRegression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## LogisticRegression_200_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'LogisticRegression_200'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('LogisticRegression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## RandomForest_100_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'RandomForest_100'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('RandomForest_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+
+## RandomForest_150_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'RandomForest_150'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('RandomForest_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## RandomForest_200_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'RandomForest_200'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('RandomForest_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+
+## RandomForest_300_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'RandomForest_300'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('RandomForest_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+
+## RandomForest_Regression_150_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'RandomForest_Regression_150'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('RandomForest_Regression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## RandomForest_Regression_200_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'RandomForest_Regression_200'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('RandomForest_Regression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## RandomForest_Regression_300_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'RandomForest_Regression_300'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('RandomForest_Regression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+
+
+## Adaboost_150_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Adaboost_150'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('Adaboost_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## Adaboost_200_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Adaboost_200'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('Adaboost_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+
+## Adaboost_Regression_150_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Adaboost_Regression_150'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('Adaboost_Regression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## Adaboost_Regression_200_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Adaboost_Regression_200'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('Adaboost_Regression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
+
+
+## Adaboost_Regression_300_EW
+```{r,warning=FALSE,echo=FALSE,message=FALSE}
+library(PerformanceAnalytics)
+tradedate <- read.csv('Tradedate.csv',header = F,col.names = 'date',colClasses = 'Date')$date
+model <- 'Adaboost_Regression_300'
+df <- read.csv(paste(model,'.csv',sep=''))[,-1]
+score <- read.csv('Adaboost_Regression_score.csv')
+score <- round(mean(na.omit(score[,2]))*100,2)
+rownames(df) <- tradedate
+colnames(df) <- c('Long-Short','Hedge HS300','Hedge ZZ500')
+df <- as.xts(df)['2009/2017']
+LongShort <- apply.monthly(x = df[,1],FUN = function(x){prod(1+x)-1})
+Hedge300 <- apply.monthly(x = df[,2],FUN = function(x){prod(1+x)-1})
+Hedge500 <- apply.monthly(x = df[,3],FUN = function(x){prod(1+x)-1})
+ret <- cbind(LongShort,Hedge500)
+maxdrawdown <- maxDrawdown(Hedge500)
+maxdrawdown <- round(maxdrawdown*100,2)
+annualized_ret <- Return.annualized(Hedge500)
+annualized_ret <- round(annualized_ret*100,2)
+sharperatio <- SharpeRatio(Hedge500)*sqrt(12)
+sharperatio <- sharperatio[1]
+sharperatio <- round(sharperatio,3)
+charts.PerformanceSummary(ret,main = model)
+
+```
+
+- Ret:`r annualized_ret`%,MaxDrawdown:`r maxdrawdown`%,Sharpe ratio:`r sharperatio`,Score:`r score`%.
